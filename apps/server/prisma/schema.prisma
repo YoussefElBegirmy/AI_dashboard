@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum TargetKind {
+  OPENROUTER_MODEL
+  HTTP_ENDPOINT
+  WORKFLOW
+  MCP_TOOL
+}
+
+enum McpTransport {
+  STREAMABLE_HTTP
+  SSE
+  STDIO
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ResultStatus {
+  PENDING
+  PASS
+  FAIL
+  ERROR
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String
+  passwordHash String
+  isAdmin      Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  memberships  ProjectMember[]
+  apiTokens    ApiToken[]
+  runs         Run[]
+  invites      Invite[]
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  name        String
+  description String          @default("")
+  createdAt   DateTime        @default(now())
+  members     ProjectMember[]
+  invites     Invite[]
+  apiTokens   ApiToken[]
+  secrets     Secret[]
+  targets     Target[]
+  mcpServers  McpServer[]
+  suites      Suite[]
+  runs        Run[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      Role     @default(EDITOR)
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  email       String
+  role        Role      @default(EDITOR)
+  projectId   String
+  createdById String
+  acceptedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  name       String
+  prefix     String
+  tokenHash  String    @unique
+  userId     String
+  projectId  String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+/// Encrypted with AES-256-GCM (MASTER_KEY). `value` = base64(iv).base64(tag).base64(ciphertext)
+model Secret {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  value     String
+  preview   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model Target {
+  id          String      @id @default(cuid())
+  projectId   String
+  name        String
+  description String      @default("")
+  kind        TargetKind
+  config      Json
+  version     Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  results     RunResult[]
+
+  @@index([projectId])
+}
+
+model McpServer {
+  id            String       @id @default(cuid())
+  projectId     String
+  name          String
+  description   String       @default("")
+  transport     McpTransport
+  config        Json
+  status        String       @default("unknown")
+  lastError     String?
+  lastCheckedAt DateTime?
+  capabilities  Json?
+  /// OAuth 2.1 credentials (client registration, tokens, PKCE verifier, discovery),
+  /// AES-256-GCM encrypted JSON. Never sent to the browser.
+  oauthData         String?
+  /// none | authorized | needs_auth
+  oauthStatus       String       @default("none")
+  /// `state` of an authorization in progress — how the callback finds this row.
+  oauthState        String?      @unique
+  oauthAuthorizedAt DateTime?
+  oauthAuthorizedBy String?
+  oauthScope        String?
+  oauthExpiresAt    DateTime?
+  oauthError        String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model Suite {
+  id               String     @id @default(cuid())
+  projectId        String
+  name             String
+  description      String     @default("")
+  evaluators       Json       @default("[]")
+  settings         Json       @default("{}")
+  defaultTargetIds String[]   @default([])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  project          Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cases            TestCase[]
+  runs             Run[]
+
+  @@index([projectId])
+}
+
+model TestCase {
+  id                 String      @id @default(cuid())
+  suiteId            String
+  name               String
+  input              Json        @default("{}")
+  expected           Json?
+  tags               String[]    @default([])
+  evaluators         Json        @default("[]")
+  useSuiteEvaluators Boolean     @default(true)
+  enabled            Boolean     @default(true)
+  position           Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  suite              Suite       @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  results            RunResult[]
+
+  @@index([suiteId])
+}
+
+model Run {
+  id              String      @id @default(cuid())
+  projectId       String
+  suiteId         String
+  name            String      @default("")
+  targetIds       String[]
+  /// { [targetId]: { name, kind, version } } captured at run start
+  targetsSnapshot Json        @default("{}")
+  status          RunStatus   @default(QUEUED)
+  concurrency     Int         @default(4)
+  tags            String[]    @default([])
+  total           Int         @default(0)
+  completed       Int         @default(0)
+  passed          Int         @default(0)
+  failed          Int         @default(0)
+  errored         Int         @default(0)
+  avgScore        Float?
+  totalCostUsd    Float       @default(0)
+  avgLatencyMs    Float?
+  error           String?
+  triggeredById   String?
+  triggeredVia    String      @default("ui")
+  createdAt       DateTime    @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suite           Suite       @relation(fields: [suiteId], references: [id], onDelete: Cascade)
+  triggeredBy     User?       @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  results         RunResult[]
+
+  @@index([projectId, createdAt])
+  @@index([suiteId, createdAt])
+}
+
+model RunResult {
+  id           String             @id @default(cuid())
+  runId        String
+  testCaseId   String?
+  targetId     String?
+  caseName     String
+  targetName   String
+  status       ResultStatus       @default(PENDING)
+  input        Json?
+  expected     Json?
+  output       String?
+  outputJson   Json?
+  raw          Json?
+  statusCode   Int?
+  latencyMs    Int?
+  inputTokens  Int?
+  outputTokens Int?
+  costUsd      Float?
+  toolCalls    Json?
+  trace        Json?
+  error        String?
+  score        Float?
+  needsReview  Boolean            @default(false)
+  /// Human override of the automatic verdict (PASS / FAIL)
+  humanStatus  ResultStatus?
+  reviewNote   String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  finishedAt   DateTime?
+  run          Run                @relation(fields: [runId], references: [id], onDelete: Cascade)
+  testCase     TestCase?          @relation(fields: [testCaseId], references: [id], onDelete: SetNull)
+  target       Target?            @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  evaluations  EvaluationResult[]
+
+  @@index([runId])
+  @@index([targetId, createdAt])
+}
+
+model EvaluationResult {
+  id          String    @id @default(cuid())
+  runResultId String
+  evaluatorId String
+  name        String
+  type        String
+  pass        Boolean?
+  score       Float?
+  needsReview Boolean   @default(false)
+  required    Boolean   @default(true)
+  weight      Float     @default(1)
+  reasoning   String?
+  details     Json?
+  error       String?
+  runResult   RunResult @relation(fields: [runResultId], references: [id], onDelete: Cascade)
+
+  @@index([runResultId])
+}
+
+/// express-session store (connect-pg-simple). Declared here so migrations own it and
+/// Prisma does not report it as drift.
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("session")
+}

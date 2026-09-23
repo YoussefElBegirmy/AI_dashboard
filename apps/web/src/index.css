@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* `dark:` utilities follow the resolved theme class on <html>, not only the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Theme tokens. Components only use these roles (bg-surface, text-ink-2, bg-accent…),
+ * so light / dark are swapped in one place below.
+ */
+:root {
+  color-scheme: light;
+  --page: #f8f7fb;
+  --surface: #fdfcfe;
+  --raised: #ffffff;
+  --ink: #140f22;
+  --ink-2: #574f6b;
+  --muted: #8a8499;
+  --grid: #e8e5ef;
+  --axis: #c9c3d6;
+  --line: rgba(20, 15, 34, 0.1);
+
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-soft: #ede9fe;
+  --accent-text: #5b21b6;
+
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --warning-text: #7a5200;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --page: #0e0c14;
+  --surface: #16131f;
+  --raised: #1d1929;
+  --ink: #f3f1f9;
+  --ink-2: #c3bdd3;
+  --muted: #8b8499;
+  --grid: #2a2637;
+  --axis: #3b3549;
+  --line: rgba(255, 255, 255, 0.09);
+
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-soft: #2b2046;
+  --accent-text: #c4b5fd;
+
+  --good-text: #3fc43f;
+  --warning-text: #fab219;
+  --critical: #e66767;
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+  --color-line: var(--line);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+
+  --color-good: var(--good);
+  --color-good-text: var(--good-text);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-serious: var(--serious);
+  --color-critical: var(--critical);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  @apply bg-page text-ink antialiased;
+  font-size: 14px;
+}
+
+/* Avoid a transition flash when the theme class is applied on load. */
+html.theme-switching * {
+  transition: none !important;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface;
+  }
+  .input {
+    @apply w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/25 disabled:bg-page disabled:text-muted;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-ink-2;
+  }
+  .hint {
+    @apply mt-1 text-xs text-muted;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .code {
+    @apply rounded bg-page px-1 py-0.5 font-mono text-[12px] text-ink-2;
+  }
+}

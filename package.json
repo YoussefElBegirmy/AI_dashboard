@@ -1,0 +1,25 @@
+{
+  "name": "ai-eval-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w @aieval/server\" \"npm run dev -w @aieval/web\"",
+    "build": "npm run build -w @aieval/web",
+    "start": "npm run start -w @aieval/server",
+    "db:up": "docker compose up -d",
+    "db:migrate": "npm run db:migrate -w @aieval/server",
+    "db:studio": "npm run db:studio -w @aieval/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:api": "npm run test:api -w @aieval/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.3"
+  }
+}

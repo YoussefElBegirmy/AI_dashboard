@@ -1,0 +1,51 @@
+{
+  "name": "@aieval/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "postinstall": "prisma generate",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:api": "dotenv -e ../../.env -- vitest run src/__tests__",
+    "db:test:setup": "dotenv -e ../../.env -v DATABASE_URL=postgresql://aieval:aieval@localhost:5432/aieval_test -- prisma migrate deploy",
+    "mock:oauth-mcp": "tsx src/dev/mockOAuthMcpServer.ts"
+  },
+  "dependencies": {
+    "@aieval/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "@prisma/client": "^6.19.3",
+    "@typesafe-ai/sdk": "^0.6.0",
+    "ajv": "^8.17.1",
+    "bcryptjs": "^3.0.2",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
+    "jsonpath-plus": "^10.3.0",
+    "p-limit": "^6.2.0",
+    "pg": "^8.16.3",
+    "pg-boss": "^10.4.2",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/express-session": "^1.18.2",
+    "@types/node": "^22.18.0",
+    "@types/pg": "^8.15.5",
+    "@types/supertest": "^6.0.3",
+    "dotenv-cli": "^8.0.0",
+    "prisma": "^6.19.3",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4"
+  }
+}
